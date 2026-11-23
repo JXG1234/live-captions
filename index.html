@@ -67,27 +67,42 @@ document.getElementById('startBtn')
 
     }
 
-    if(window.opener){
+    document.getElementById('status')
+  .textContent =
+  text.trim();
 
-      window.opener.postMessage(
-        {
-          type:'caption',
-          text:text.trim()
-        },
-        '*'
-      );
+if(window.opener){
 
-    }
+  window.opener.postMessage(
+    {
+      type:'caption',
+      text:text.trim()
+    },
+    '*'
+  );
 
-  };
+}
 
   recognition.onerror = function(event){
+
+  if(event.error === 'no-speech'){
+    return;
+  }
 
   console.log(event);
 
   document.getElementById('status')
     .textContent =
     'Error: ' + event.error;
+
+};
+
+recognition.onend = function(){
+
+  try{
+    recognition.start();
+  }
+  catch(err){}
 
 };
 
