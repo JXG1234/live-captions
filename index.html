@@ -29,11 +29,23 @@ document.getElementById('startBtn')
         });
 
       document.getElementById('status')
-        .textContent =
-        'Microphone Access Granted';
+  .textContent =
+  'Microphone Access Granted';
 
-      stream.getTracks()
-        .forEach(track => track.stop());
+if (window.opener) {
+
+  window.opener.postMessage(
+    {
+      type: 'caption',
+      text: 'Hello from GitHub Pages'
+    },
+    '*'
+  );
+
+}
+
+stream.getTracks()
+  .forEach(track => track.stop());
 
     }
     catch(err){
