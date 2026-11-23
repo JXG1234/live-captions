@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Live Captions</title>
+</head>
+<body>
+
+<h1>Microphone Test</h1>
+
+<button id="startBtn">
+Start Mic
+</button>
+
+<div id="status">
+Idle
+</div>
+
+<script>
+
+document.getElementById('startBtn')
+  .onclick = async function(){
+
+    try{
+
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio:true
+        });
+
+      document.getElementById('status')
+        .textContent =
+        'Microphone Access Granted';
+
+      stream.getTracks()
+        .forEach(track => track.stop());
+
+    }
+    catch(err){
+
+      document.getElementById('status')
+        .textContent =
+        err.name + ': ' + err.message;
+
+    }
+
+  };
+
+</script>
+
+</body>
+</html>
