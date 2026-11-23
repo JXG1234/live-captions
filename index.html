@@ -2,111 +2,156 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Live Captions</title>
-
 <style>
-body{
-  font-family: Arial, sans-serif;
-  padding:20px;
-}
-
-button{
-  padding:8px 16px;
-  margin-right:8px;
-}
-
-#status{
-  margin-top:20px;
-  font-size:20px;
-  min-height:40px;
-}
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  button { padding: 8px 16px; margin-right: 8px; font-size: 16px; }
+  #link { margin: 16px 0 8px; font-size: 14px; }
+  #link.ok { color: #1a7f37; }
+  #link.bad { color: #c62828; }
+  #status { font-size: 20px; font-weight: bold; min-height: 28px; }
+  #preview { margin-top: 12px; color: #444; font-size: 18px; line-height: 1.4; }
+  .note { color: #666; font-size: 13px; margin-top: 20px; }
 </style>
 </head>
-
 <body>
 
-<h1>Microphone Test</h1>
+<h1>Live Captions</h1>
 
-<button id="startBtn">
-Start Mic
-</button>
+<button id="startBtn">Start mic</button>
+<button id="stopBtn">Stop mic</button>
 
-<button id="stopBtn">
-Stop Mic
-</button>
+<div id="link">Connecting to the viewer...</div>
+<div id="status">Idle</div>
+<div id="preview"></div>
 
-<div id="status">
-Idle
-</div>
+<p class="note">Keep this window open and visible. Closing it stops the captions.</p>
 
 <script>
-
-const SpeechRecognition =
-  window.SpeechRecognition ||
-  window.webkitSpeechRecognition;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const statusEl  = document.getElementById('status');
+const linkEl    = document.getElementById('link');
+const previewEl = document.getElementById('preview');
 
 let recognition = null;
-let listening = false;
+let wanted = false;     // should the mic be running?
+let linked = false;     // has the viewer acknowledged us?
 
-document.getElementById('startBtn')
-.onclick = function(){
+function setStatus(t) { statusEl.textContent = t; }
+function setLink(t, ok) { linkEl.textContent = t; linkEl.className = ok ? 'ok' : 'bad'; }
 
-  alert('Start button clicked');
+function viewerAlive() { return !!window.opener && !window.opener.closed; }
 
-  if(!SpeechRecognition){
+// The viewer's address varies, so send to '*'. Only caption text goes out,
+// and the viewer checks who sent what it receives.
+function toViewer(msg) {
+  if (!viewerAlive()) return false;
+  window.opener.postMessage(msg, '*');
+  return true;
+}
 
-    document.getElementById('status')
-      .textContent =
-      'Speech Recognition not supported';
+function tail(t, n) {
+  if (t.length <= n) return t;
+  return '\u2026' + t.slice(-n).replace(/^\S*\s/, '');
+}
 
+function start() {
+  if (!SR) {
+    setStatus('Speech recognition is not supported here. Use Chrome or Edge.');
+    toViewer({ type: 'status', state: 'error', detail: 'unsupported browser' });
     return;
   }
+  if (recognition) return;
+  wanted = true;
 
-  if(listening){
-    return;
-  }
-
-  recognition = new SpeechRecognition();
-
+  recognition = new SR();
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-GB';
 
-  recognition.onstart = function(){
-
-    console.log('Recognition started');
-
-    listening = true;
-
-    document.getElementById('status')
-      .textContent =
-      'Listening...';
-
+  recognition.onstart = function () {
+    setStatus('Listening...');
+    toViewer({ type: 'status', state: 'listening' });
   };
 
-  recognition.onresult = function(event){
-
-    console.log(
-      'Speech detected',
-      event
-    );
-
+  recognition.onresult = function (e) {
     let text = '';
-
-    for(let i=0;i<event.results.length;i++){
-
-      text +=
-        event.results[i][0].transcript +
-        ' ';
-
-    }
-
+    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript + ' ';
     text = text.trim();
+    previewEl.textContent = tail(text, 300);
+    toViewer({ type: 'caption', text: tail(text, 160) });   // only the latest words
+  };
 
-    document.getElementById('status')
-      .textContent =
-      text;
+  recognition.onerror = function (e) {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    setStatus('Error: ' + e.error);
+    toViewer({ type: 'status', state: 'error', detail: e.error });
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') wanted = false;
+  };
 
-    if(window.opener){
+  recognition.onend = function () {
+    recognition = null;
+    if (wanted) setTimeout(start, 300);                     // Chrome ends sessions on its own
+    else toViewer({ type: 'status', state: 'paused' });
+  };
 
-   
+  try { recognition.start(); }
+  catch (err) { recognition = null; setStatus('Could not start: ' + err.message); }
+}
+
+function stop() {
+  wanted = false;
+  if (recognition) { try { recognition.stop(); } catch (e) {} }
+  setStatus('Paused');
+  toViewer({ type: 'status', state: 'paused' });
+}
+
+document.getElementById('startBtn').onclick = start;
+document.getElementById('stopBtn').onclick = stop;
+
+// Messages from the viewer (only accept them from the window that opened us)
+window.addEventListener('message', function (e) {
+  if (e.source !== window.opener) return;
+  const d = e.data || {};
+  if (d.type === 'ack') { linked = true; setLink('Connected to viewer', true); }
+  else if (d.type === 'pause') stop();
+  else if (d.type === 'resume') start();
+});
+
+// Handshake: keep saying hello until the viewer answers
+let tries = 0;
+const helloTimer = setInterval(function () {
+  if (linked) { clearInterval(helloTimer); return; }
+  if (++tries > 12) {
+    clearInterval(helloTimer);
+    setLink(viewerAlive()
+      ? 'The viewer did not answer. Reload the viewer page and press CC again.'
+      : 'No link to the viewer (window.opener is empty). Close this window and open it with the CC button.',
+      false);
+    return;
+  }
+  toViewer({ type: 'hello' });
+}, 500);
+
+// Stop if the viewer page goes away
+setInterval(function () {
+  if (linked && !viewerAlive()) {
+    stop();
+    setLink('The viewer was closed. You can close this window.', false);
+  }
+}, 2000);
+
+// Start straight away if the mic is already allowed for this site
+if (navigator.permissions && navigator.permissions.query) {
+  navigator.permissions.query({ name: 'microphone' }).then(function (p) {
+    if (p.state === 'granted') start();
+    else setStatus('Press Start mic and allow the microphone.');
+  }).catch(function () { setStatus('Press Start mic.'); });
+} else {
+  setStatus('Press Start mic.');
+}
+</script>
+
+</body>
+</html>
