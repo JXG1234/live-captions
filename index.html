@@ -46,13 +46,17 @@ document.getElementById('startBtn')
 
   recognition.onstart = function(){
 
-    document.getElementById('status')
-      .textContent =
-      'Listening';
+  console.log('Recognition started');
 
-  };
+  document.getElementById('status')
+    .textContent =
+    'Listening';
+
+};
+
 
   recognition.onresult = function(event){
+    console.log('Speech detected', event);
 
     let text = '';
 
@@ -86,7 +90,10 @@ if(window.opener){
     return;
   }
 
-  console.log(event);
+  console.log(
+    'Speech error:',
+    event.error
+  );
 
   document.getElementById('status')
     .textContent =
