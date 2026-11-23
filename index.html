@@ -32,14 +32,11 @@ let recognition = null;
 document.getElementById('startBtn')
 .onclick = function(){
 
-  if(!SpeechRecognition){
+  console.log('Start button clicked');
 
-    document.getElementById('status')
-      .textContent =
-      'Speech Recognition not supported';
+  alert('Start button clicked');
 
-    return;
-  }
+};
 
   recognition = new SpeechRecognition();
 
