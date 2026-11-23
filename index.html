@@ -3,7 +3,26 @@
 <head>
 <meta charset="utf-8">
 <title>Live Captions</title>
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  padding:20px;
+}
+
+button{
+  padding:8px 16px;
+  margin-right:8px;
+}
+
+#status{
+  margin-top:20px;
+  font-size:20px;
+  min-height:40px;
+}
+</style>
 </head>
+
 <body>
 
 <h1>Microphone Test</h1>
@@ -16,7 +35,6 @@ Start Mic
 Stop Mic
 </button>
 
-
 <div id="status">
 Idle
 </div>
@@ -28,15 +46,25 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 let recognition = null;
+let listening = false;
 
 document.getElementById('startBtn')
 .onclick = function(){
 
-  console.log('Start button clicked');
-
   alert('Start button clicked');
 
-};
+  if(!SpeechRecognition){
+
+    document.getElementById('status')
+      .textContent =
+      'Speech Recognition not supported';
+
+    return;
+  }
+
+  if(listening){
+    return;
+  }
 
   recognition = new SpeechRecognition();
 
@@ -46,17 +74,22 @@ document.getElementById('startBtn')
 
   recognition.onstart = function(){
 
-  console.log('Recognition started');
+    console.log('Recognition started');
 
-  document.getElementById('status')
-    .textContent =
-    'Listening';
+    listening = true;
 
-};
+    document.getElementById('status')
+      .textContent =
+      'Listening...';
 
+  };
 
   recognition.onresult = function(event){
-    console.log('Speech detected', event);
+
+    console.log(
+      'Speech detected',
+      event
+    );
 
     let text = '';
 
@@ -68,70 +101,12 @@ document.getElementById('startBtn')
 
     }
 
+    text = text.trim();
+
     document.getElementById('status')
-  .textContent =
-  text.trim();
+      .textContent =
+      text;
 
-if(window.opener){
+    if(window.opener){
 
-  window.opener.postMessage(
-    {
-      type:'caption',
-      text:text.trim()
-    },
-    '*'
-  );
-
-}
-
-  recognition.onerror = function(event){
-
-  if(event.error === 'no-speech'){
-    return;
-  }
-
-  console.log(
-    'Speech error:',
-    event.error
-  );
-
-  document.getElementById('status')
-    .textContent =
-    'Error: ' + event.error;
-
-};
-
-recognition.onend = function(){
-
-  try{
-    recognition.start();
-  }
-  catch(err){}
-
-};
-console.log(
-  'Calling recognition.start()'
-);
-  recognition.start();
-
-};
-
-document.getElementById('stopBtn')
-.onclick = function(){
-
-  if(recognition){
-
-    recognition.stop();
-
-  }
-
-  document.getElementById('status')
-    .textContent =
-    'Stopped';
-
-};
-
-</script>
-
-</body>
-</html>
+   
