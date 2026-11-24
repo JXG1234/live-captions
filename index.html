@@ -236,22 +236,44 @@ function start() {
 
   recognition.onresult = function (e) {
 
-  let text = '';
+  let displayText = '';
+  let finalText = '';
 
-  for (let i = 0; i < e.results.length; i++) {
-    text += e.results[i][0].transcript + ' ';
+  for (let i = e.resultIndex; i < e.results.length; i++) {
+
+    const transcript =
+      e.results[i][0].transcript.trim();
+
+    displayText += transcript + ' ';
+
+    if (e.results[i].isFinal) {
+      finalText += transcript + ' ';
+    }
+
   }
 
-  text = text.trim();
+  displayText = displayText.trim();
+  finalText = finalText.trim();
 
-  el('preview').textContent = tail(text, 300);
+  el('preview').textContent =
+    tail(displayText, 300);
 
   toViewer({
     type: 'caption',
-    text: tail(text, 400),
-    transcript: el('transcriptMode').checked
+    text: tail(displayText, 400)
   });
 
+  if (
+      finalText &&
+      el('transcriptMode').checked
+  ) {
+
+    toViewer({
+      type: 'transcript',
+      text: finalText
+    });
+
+  }
 
 };
 
