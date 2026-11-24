@@ -41,6 +41,10 @@
 
 <button id="startBtn">Start mic</button>
 <button id="stopBtn">Stop mic</button>
+  <label>
+  <input type="checkbox" id="transcriptMode">
+  Save transcript to slide notes
+</label>
 
 <div id="link">Connecting to the viewer...</div>
 <div id="status">Idle</div>
@@ -231,12 +235,26 @@ function start() {
   };
 
   recognition.onresult = function (e) {
-    let text = '';
-    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript + ' ';
-    text = text.trim();
-    el('preview').textContent = tail(text, 300);
-    toViewer({ type: 'caption', text: tail(text, 400) });   // only the latest words
-  };
+
+  let text = '';
+
+  for (let i = 0; i < e.results.length; i++) {
+    text += e.results[i][0].transcript + ' ';
+  }
+
+  text = text.trim();
+
+  el('preview').textContent = tail(text, 300);
+
+  toViewer({
+    type: 'caption',
+    text: tail(text, 400),
+    transcript: el('transcriptMode').checked
+  });
+
+
+};
+
 
   recognition.onerror = function (e) {
     if (e.error === 'no-speech' || e.error === 'aborted') return;
