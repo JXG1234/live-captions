@@ -275,10 +275,23 @@ function start() {
 
 function stop() {
   wanted = false;
-  if (recognition) { try { recognition.stop(); } catch (e) {} }
+
+  if (recognition) {
+    try { recognition.stop(); } catch (e) {}
+  }
+
   setStatus('Paused');
-  toViewer({ type: 'status', state: 'paused' });
+
+  toViewer({
+    type: 'status',
+    state: 'paused'
+  });
+
+  toViewer({
+    type: 'saveTranscript'
+  });
 }
+
 
 el('startBtn').onclick = start;
 el('stopBtn').onclick = stop;
