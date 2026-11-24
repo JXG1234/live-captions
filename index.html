@@ -41,10 +41,24 @@
 
 <button id="startBtn">Start mic</button>
 <button id="stopBtn">Stop mic</button>
+<div style="margin-top:12px">
+
   <label>
-  <input type="checkbox" id="transcriptMode">
-  Save transcript to slide notes
-</label>
+    <input type="checkbox"
+           id="captionMode"
+           checked>
+    Display live captions
+  </label>
+
+  <br>
+
+  <label>
+    <input type="checkbox"
+           id="transcriptMode">
+    Save transcript to slide notes and Logbook
+  </label>
+
+</div>
 
 <div id="link">Connecting to the viewer...</div>
 <div id="status">Idle</div>
@@ -216,6 +230,18 @@ renderPreview();
 /* ---------- Speech recognition ---------- */
 
 function start() {
+  if (
+  !el('captionMode').checked &&
+  !el('transcriptMode').checked
+) {
+
+  setStatus(
+    'Select captions or transcript'
+  );
+
+  return;
+}
+
   if (!SR) {
     setStatus('Speech recognition is not supported here. Use Chrome or Edge.');
     toViewer({ type: 'status', state: 'error', detail: 'unsupported browser' });
@@ -258,10 +284,16 @@ function start() {
   el('preview').textContent =
     tail(displayText, 300);
 
+  if (
+  el('captionMode').checked
+) {
+
   toViewer({
     type: 'caption',
     text: tail(displayText, 400)
   });
+
+}
 
   if (
       finalText &&
@@ -309,9 +341,15 @@ function stop() {
     state: 'paused'
   });
 
+  if (
+  el('transcriptMode').checked
+) {
+
   toViewer({
     type: 'saveTranscript'
   });
+
+}
 }
 
 
