@@ -233,93 +233,60 @@ renderPreview();
 
 /* ---------- Noise monitoring ---------- */
 
+
 async function startNoiseMonitoring() {
-
   try {
+    setStatus('Starting microphone level monitor...');
 
-    const stream =
-      await navigator.mediaDevices.getUserMedia({
-        audio: true
-      });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
 
-    noiseContext =
-      new (
-        window.AudioContext ||
-        window.webkitAudioContext
-      )();
+    noiseContext = new (
+      window.AudioContext || window.webkitAudioContext
+    )();
 
-    const source =
-      noiseContext.createMediaStreamSource(
-        stream
-      );
+    await noiseContext.resume();
 
-    noiseAnalyser =
-      noiseContext.createAnalyser();
+    const source = noiseContext.createMediaStreamSource(stream);
 
+    noiseAnalyser = noiseContext.createAnalyser();
     noiseAnalyser.fftSize = 512;
-
     source.connect(noiseAnalyser);
 
-    noiseData =
-      new Uint8Array(
-        noiseAnalyser.fftSize
-      );
+    noiseData = new Uint8Array(noiseAnalyser.fftSize);
 
-    if (noiseTimer) {
-      clearInterval(noiseTimer);
-    }
+    if (noiseTimer) clearInterval(noiseTimer);
 
     noiseTimer = setInterval(function () {
-
       if (!noiseAnalyser) return;
 
-      noiseAnalyser.getByteTimeDomainData(
-        noiseData
-      );
+      noiseAnalyser.getByteTimeDomainData(noiseData);
 
       let sum = 0;
 
-      for (
-        let i = 0;
-        i < noiseData.length;
-        i++
-      ) {
-
-        const v =
-          (noiseData[i] - 128) / 128;
-
+      for (let i = 0; i < noiseData.length; i++) {
+        const v = (noiseData[i] - 128) / 128;
         sum += v * v;
       }
 
-      const rms =
-        Math.sqrt(
-          sum / noiseData.length
-        );
-
-      const level =
-        Math.min(
-          100,
-          Math.round(rms * 300)
-        );
+      const rms = Math.sqrt(sum / noiseData.length);
+      const level = Math.min(100, Math.round(rms * 300));
 
       toViewer({
         type: 'noiseLevel',
         level: level
       });
-
     }, 100);
 
+    setStatus('Listening... Microphone level monitor active.');
+
+  } catch (err) {
+    console.error('Noise monitor error:', err);
+    setStatus('Noise monitor error: ' + err.message);
   }
-  catch (err) {
-
-    console.error(
-      'Noise monitor error',
-      err
-    );
-
-  }
-
 }
+
   
 /* ---------- Speech recognition ---------- */
 
