@@ -116,6 +116,10 @@ const el = function (id) { return document.getElementById(id); };
 let recognition = null;
 let wanted = false;     // should the mic be running?
 let linked = false;     // has the viewer acknowledged us?
+let noiseTimer = null;
+let noiseContext = null;
+let noiseAnalyser = null;
+let noiseData = null;
 
 function setStatus(t) { el('status').textContent = t; }
 function setLink(t, ok) { el('link').textContent = t; el('link').className = ok ? 'ok' : 'bad'; }
@@ -227,6 +231,96 @@ writeControls();
 updateLabels();
 renderPreview();
 
+/* ---------- Noise monitoring ---------- */
+
+async function startNoiseMonitoring() {
+
+  try {
+
+    const stream =
+      await navigator.mediaDevices.getUserMedia({
+        audio: true
+      });
+
+    noiseContext =
+      new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )();
+
+    const source =
+      noiseContext.createMediaStreamSource(
+        stream
+      );
+
+    noiseAnalyser =
+      noiseContext.createAnalyser();
+
+    noiseAnalyser.fftSize = 512;
+
+    source.connect(noiseAnalyser);
+
+    noiseData =
+      new Uint8Array(
+        noiseAnalyser.fftSize
+      );
+
+    if (noiseTimer) {
+      clearInterval(noiseTimer);
+    }
+
+    noiseTimer = setInterval(function () {
+
+      if (!noiseAnalyser) return;
+
+      noiseAnalyser.getByteTimeDomainData(
+        noiseData
+      );
+
+      let sum = 0;
+
+      for (
+        let i = 0;
+        i < noiseData.length;
+        i++
+      ) {
+
+        const v =
+          (noiseData[i] - 128) / 128;
+
+        sum += v * v;
+      }
+
+      const rms =
+        Math.sqrt(
+          sum / noiseData.length
+        );
+
+      const level =
+        Math.min(
+          100,
+          Math.round(rms * 300)
+        );
+
+      toViewer({
+        type: 'noiseLevel',
+        level: level
+      });
+
+    }, 100);
+
+  }
+  catch (err) {
+
+    console.error(
+      'Noise monitor error',
+      err
+    );
+
+  }
+
+}
+  
 /* ---------- Speech recognition ---------- */
 
 function start() {
@@ -256,9 +350,19 @@ function start() {
   recognition.lang = 'en-GB';
 
   recognition.onstart = function () {
-    setStatus('Listening...');
-    toViewer({ type: 'status', state: 'listening' });
-  };
+
+  setStatus('Listening...');
+
+  toViewer({
+    type: 'status',
+    state: 'listening'
+  });
+
+  if (!noiseTimer) {
+    startNoiseMonitoring();
+  }
+
+};
 
   recognition.onresult = function (e) {
 
@@ -333,7 +437,24 @@ function stop() {
   if (recognition) {
     try { recognition.stop(); } catch (e) {}
   }
+  if (noiseTimer) {
 
+  clearInterval(noiseTimer);
+
+  noiseTimer = null;
+
+}
+
+if (noiseContext) {
+
+  noiseContext.close();
+
+  noiseContext = null;
+
+}
+
+noiseAnalyser = null;
+noiseData = null;
   setStatus('Paused');
 
   toViewer({
