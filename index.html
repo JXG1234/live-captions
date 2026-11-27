@@ -151,10 +151,12 @@ let recognition = null;
 let wanted = false;     // should the mic be running?
 let linked = false;     // has the viewer acknowledged us?
 let noiseTimer = null;
+let noiseStream = null;
 let noiseContext = null;
 let noiseAnalyser = null;
 let noiseData = null;
 let noiseRecordingActive = false;
+
 /* ---------- Shared audio alert settings ---------- */
 
 const AUDIO_STORE_KEY = 'classroomAudioSettings';
@@ -346,10 +348,10 @@ async function startNoiseMonitoring() {
 
   try {
 
-    const stream =
-      await navigator.mediaDevices.getUserMedia({
-        audio: true
-      });
+    noiseStream =
+  await navigator.mediaDevices.getUserMedia({
+    audio: true
+  });
 
     noiseContext =
       new (
@@ -358,9 +360,9 @@ async function startNoiseMonitoring() {
       )();
 
     const source =
-      noiseContext.createMediaStreamSource(
-        stream
-      );
+  noiseContext.createMediaStreamSource(
+    noiseStream
+  );
 
     noiseAnalyser =
       noiseContext.createAnalyser();
@@ -554,6 +556,16 @@ function stop() {
   clearInterval(noiseTimer);
 
   noiseTimer = null;
+
+}
+
+if (noiseStream) {
+
+  noiseStream.getTracks().forEach(function(track) {
+    track.stop();
+  });
+
+  noiseStream = null;
 
 }
 
