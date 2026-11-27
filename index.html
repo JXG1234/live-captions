@@ -67,7 +67,33 @@
   </label>
 
 </div>
+<h2>Audio alerts</h2>
 
+<div class="setting">
+  <label>
+    <input type="checkbox" id="ttsMode" checked>
+    Spoken alerts (TTS)
+  </label>
+</div>
+
+<div class="setting">
+  <label>
+    <input type="checkbox" id="beepMode" checked>
+    Sound effects (beeps)
+  </label>
+</div>
+
+<div class="setting">
+  <label>
+    <input type="checkbox" id="muteAllMode">
+    Mute all
+  </label>
+</div>
+
+<p class="note">
+  These settings control spoken alerts and sound effects in both the
+  noise meter and lesson timer.
+</p>
 <div id="link">Connecting to the viewer...</div>
 <div id="status">Idle</div>
 <div id="preview"></div>
@@ -129,6 +155,74 @@ let noiseContext = null;
 let noiseAnalyser = null;
 let noiseData = null;
 let noiseRecordingActive = false;
+/* ---------- Shared audio alert settings ---------- */
+
+const AUDIO_STORE_KEY = 'classroomAudioSettings';
+
+let audioSettings = {
+  tts: true,
+  beeps: true
+};
+
+function loadAudioSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(AUDIO_STORE_KEY));
+
+    if (saved && typeof saved === 'object') {
+      audioSettings.tts = saved.tts !== false;
+      audioSettings.beeps = saved.beeps !== false;
+    }
+  } catch (e) {}
+}
+
+function saveAudioSettings() {
+  try {
+    localStorage.setItem(
+      AUDIO_STORE_KEY,
+      JSON.stringify(audioSettings)
+    );
+  } catch (e) {}
+}
+
+function writeAudioControls() {
+  el('ttsMode').checked = audioSettings.tts;
+  el('beepMode').checked = audioSettings.beeps;
+  el('muteAllMode').checked =
+    !audioSettings.tts && !audioSettings.beeps;
+}
+
+function sendAudioSettings() {
+  toViewer({
+    type: 'audioSettings',
+    settings: audioSettings
+  });
+}
+
+function changeAudioSettings() {
+  audioSettings.tts = el('ttsMode').checked;
+  audioSettings.beeps = el('beepMode').checked;
+
+  saveAudioSettings();
+  writeAudioControls();
+  sendAudioSettings();
+}
+
+el('ttsMode').addEventListener('change', changeAudioSettings);
+el('beepMode').addEventListener('change', changeAudioSettings);
+
+el('muteAllMode').addEventListener('change', function () {
+  const mute = el('muteAllMode').checked;
+
+  audioSettings.tts = !mute;
+  audioSettings.beeps = !mute;
+
+  saveAudioSettings();
+  writeAudioControls();
+  sendAudioSettings();
+});
+
+loadAudioSettings();
+writeAudioControls();
 
 function setNoiseRecording(active) {
   if (active === noiseRecordingActive) return;
@@ -507,10 +601,21 @@ window.addEventListener('message', function (e) {
   if (e.source !== window.opener) return;
   const d = e.data || {};
   if (d.type === 'ack') {
-    linked = true;
-    setLink('Connected to viewer', true);
-    sendSettings(false);                  // apply saved settings straight away
-  }
+  linked = true;
+  setLink('Connected to viewer', true);
+  sendSettings(false);
+  sendAudioSettings();
+}
+
+else if (d.type === 'audioSettings') {
+  const s = d.settings || {};
+
+  audioSettings.tts = s.tts !== false;
+  audioSettings.beeps = s.beeps !== false;
+
+  saveAudioSettings();
+  writeAudioControls();
+}
   else if (d.type === 'pause') stop();
   else if (d.type === 'resume') start();
 });
